@@ -1,0 +1,20 @@
+{
+  "name": "pipeslines-ci",
+  "version": "1.0.0",
+  "description": "Practica en clase",
+  "main": "index.js",
+ "scripts": {
+  "build": "echo 'Building project...'"
+},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VivianneZ/Pipeslines-CI.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/VivianneZ/Pipeslines-CI/issues"
+  },
+  "homepage": "https://github.com/VivianneZ/Pipeslines-CI#readme"
+}
