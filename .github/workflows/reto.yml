@@ -1,0 +1,82 @@
+name: Pipeline del Reto - CI Completo
+
+# Requisito 1 y 2: Triggers en push/PR a main, ignorando la carpeta docs/
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'docs/**'
+
+jobs:
+  # Requisito 3: Job "calidad" que ejecuta el linter y falla si hay advertencias
+  calidad:
+    name: Calidad de Código
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar linter
+        # --max-warnings=0 hace que el linter falle si encuentra cualquier advertencia
+        run: npx eslint . --max-warnings=0
+
+  # Requisito 4: Job "pruebas" con matriz de dos versiones del lenguaje (Node.js 20 y 22)
+  pruebas:
+    name: Pruebas Unitarias
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js (${{ matrix.node-version }})
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas y generar reporte de cobertura
+        run: npm test -- --coverage
+
+  # Requisito 5 y 6: Job "empaquetar" que depende de los dos anteriores y publica artefactos
+  empaquetar:
+    name: Empaquetar y Publicar
+    runs-on: ubuntu-latest
+    needs: [calidad, pruebas] # Depende de los dos jobs anteriores
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar proyecto
+        run: npm run build
+
+      # Requisito 6: Publicar el artefacto y reporte
+      - name: Publicar artefacto de compilación
+        uses: actions/upload-artifact@v4
+        with:
+          name: paquete-compilado
+          path: dist/ # O la carpeta de salida generada (build/ o dist/)
