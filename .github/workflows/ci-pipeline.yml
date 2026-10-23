@@ -1,0 +1,113 @@
+name: CI Pipeline - Reto 3
+
+# ==============================================================================
+# REQUISITO 1 y 2: TRIGGERS Y FILTROS DE RUTA
+# ==============================================================================
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**' # Ignora cambios que solo afecten a la carpeta docs/ (Requisito 2)
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**' # Ignora cambios que solo afecten a la carpeta docs/ (Requisito 2)
+
+jobs:
+  # ==============================================================================
+  # REQUISITO 3: JOB "CALIDAD" (LINTER)
+  # ==============================================================================
+  calidad:
+    name: Calidad de Código y Linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar Linter (Falla si hay advertencias)
+        # --max-warnings=0 hace que el job falle si se detecta cualquier advertencia
+        run: npx eslint . --max-warnings=0
+
+  # ==============================================================================
+  # REQUISITO 4: JOB "PRUEBAS" CON MATRIZ
+  # ==============================================================================
+  pruebas:
+    name: Pruebas en Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18', '20'] # Matriz con dos versiones del lenguaje (Requisito 4)
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Ejecutar pruebas y generar reporte de cobertura
+        run: npm test -- --coverage
+
+      - name: Guardar reporte de cobertura temporalmente
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-cobertura-node-${{ matrix.node-version }}
+          path: coverage/
+
+  # ==============================================================================
+  # REQUISITO 5 y 6: JOB "EMPAQUETAR" (DEPENDENCIAS Y PUBLICACIÓN DE ARTEFACTOS)
+  # ==============================================================================
+  empaquetar:
+    name: Empaquetar y Publicar Artefactos
+    runs-on: ubuntu-latest
+    # Requisito 5: Depende de los dos jobs anteriores
+    needs: [calidad, pruebas]
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias y construir la aplicación
+        run: |
+          npm ci
+          npm run build --if-present
+
+      - name: Descargar reporte de cobertura del job de pruebas
+        uses: actions/download-artifact@v4
+        with:
+          name: reporte-cobertura-node-20
+          path: coverage/
+
+      # Requisito 6: Publica el artefacto del proyecto y el reporte de cobertura como salida
+      - name: Publicar Artefacto de la Aplicación
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplicativo-empaquetado
+          path: dist/ # O la carpeta build de tu proyecto
+
+      - name: Publicar Reporte de Cobertura Final
+        uses: actions/upload-artifact@v4
+        with:
+          name: reporte-cobertura-final
+          path: coverage/
